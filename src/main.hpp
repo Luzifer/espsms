@@ -12,6 +12,7 @@ void checkNet();
 bool expectString(String expect);
 void initModem();
 void initWiFi();
+String iso88591ToUTF8(String in);
 String readLine();
 String readLine(int timeout);
 bool sendBoolCommand(String command);

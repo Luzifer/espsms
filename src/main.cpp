@@ -1,8 +1,9 @@
 #include <Arduino.h>
+#include <WiFi.h>
 
+#include "http.hpp"
 #include "main.hpp"
 #include "modem.hpp"
-#include "mqtt.hpp"
 #include "timer.h"
 #include "timerManager.h"
 
@@ -20,10 +21,6 @@ void checkNet() {
   String creg = sendCommand("AT+CREG?", true);
   regInfo = creg.substring(7);
   Serial.println("INF: Registration: " + regInfo);
-
-  if (!sendTelemetry(quality, regInfo)) {
-    Serial.println("ERR: Unable to submit telemetry");
-  }
 }
 
 bool expectString(String expect) { return readLine() == expect; }
@@ -41,7 +38,7 @@ void initModem() {
   Serial.println("Initializing modem in 4s...");
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
 
-  delay(4000);
+  readLine(4000);
 
   if (!sendBoolCommand("AT")) {
     Serial.println("Modem initializing not successful");
@@ -80,7 +77,7 @@ void initModem() {
 
 void initWiFi() {
   Serial.println("Connecting to WiFi...");
-  WiFi.setHostname(MQTT_CLIENT_ID);
+  WiFi.setHostname(HOSTNAME);
   WiFi.begin(WIFI_NAME, WIFI_PASS);
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -91,12 +88,28 @@ void initWiFi() {
   Serial.println();
 }
 
+String iso88591ToUTF8(String in) {
+  String out = "";
+
+  for (int i = 0; i < in.length(); i++) {
+    char ch = in.charAt(i);
+    if (ch < 0x80) {
+      out += ch;
+    } else {
+      out += (char)(0xc0 | (ch & 0xc0) >> 6);
+      out += (char)(0x80 | (ch & 0x3f));
+    }
+  }
+
+  return out;
+}
+
 void loop() {
   while (commandRunning) {
     delay(10);
   }
 
-  if (WiFi.status() != WL_CONNECTED || mqtt.state() != 0) {
+  if (WiFi.status() != WL_CONNECTED) {
     digitalWrite(MODEM_POWER_ON, LOW);
     esp_restart();
     return;
@@ -125,13 +138,12 @@ void loop() {
     pos = npos + 1;
     String date = line.substring(pos);
 
-    if (!sendMessage(trimQuotes(senderNo), trimQuotes(senderName), trimQuotes(date), message)) {
+    if (!sendMessage(trimQuotes(senderNo), trimQuotes(senderName), trimQuotes(date), iso88591ToUTF8(message))) {
       Serial.println("ERR: Unable to submit message");
     }
   }
 
   TimerManager::instance().update();
-  mqtt.loop();
 }
 
 String readLine() {
@@ -169,7 +181,7 @@ String readLine(int timeout) {
   }
 
 #ifdef MODEM_DEBUG
-  Serial.println("DBG: Received " + response);
+  Serial.println("DBG: <= " + response);
 #endif
 
   return response;
@@ -184,9 +196,12 @@ String sendCommand(String command, bool readOK) {
     delay(10);
   }
 
+  Serial.println("DBG: => " + command);
+
   commandRunning = true;
   SerialAT.println(command);
   if (!expectString(command)) {
+    commandRunning = false;
     return "ERR Command does not match";
   }
   String resp = readLine();
@@ -199,11 +214,8 @@ String sendCommand(String command, bool readOK) {
 
 void setup() {
   Serial.begin(9600);
+  delay(2000); // Give terminal chance to connect
   initWiFi();
-  while(!initMQTT()) {
-    Serial.println("ERR: Unable to connect to MQTT broker");
-    delay(500);
-  }
   initModem();
 }
 
