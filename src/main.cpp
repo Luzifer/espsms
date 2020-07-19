@@ -1,8 +1,9 @@
+#include "main.hpp"
+
 #include <Arduino.h>
 #include <WiFi.h>
 
 #include "http.hpp"
-#include "main.hpp"
 #include "modem.hpp"
 #include "timer.h"
 #include "timerManager.h"
@@ -11,7 +12,7 @@
 #define MODEM_DEBUG
 
 // Set serial for AT commands (to SIM800 module)
-#define SerialAT  Serial1
+#define SerialAT Serial1
 
 void checkNet() {
   String csq = sendCommand("AT+CSQ", true);
@@ -122,8 +123,6 @@ void loop() {
     Serial.println("ERR: " + line);
   }
 
-  // DBG: Received +CMT: "+49157***","","20/07/19,12:57:45+08"
-  // DBG: Received Sehr lange SMS um zu demonstrieren wie sich der Kram verh�lt wenn sowohl Sonderzeichen als auch viel Text in der Nachricht stecken
   if (line.startsWith("+CMT: ")) {
     String message = readLine();
 
@@ -138,7 +137,8 @@ void loop() {
     pos = npos + 1;
     String date = line.substring(pos);
 
-    if (!sendMessage(trimQuotes(senderNo), trimQuotes(senderName), trimQuotes(date), iso88591ToUTF8(message))) {
+    if (!sendMessage(trimQuotes(senderNo), trimQuotes(senderName),
+                     trimQuotes(date), iso88591ToUTF8(message))) {
       Serial.println("ERR: Unable to submit message");
     }
   }
@@ -146,15 +146,13 @@ void loop() {
   TimerManager::instance().update();
 }
 
-String readLine() {
-  return readLine(0);
-}
+String readLine() { return readLine(0); }
 
 String readLine(int timeout) {
   String response = "";
   int start = millis();
 
-  while(true)  {
+  while (true) {
     while (!SerialAT.available()) {
       delay(10);
 
@@ -214,28 +212,18 @@ String sendCommand(String command, bool readOK) {
 
 void setup() {
   Serial.begin(9600);
-  delay(2000); // Give terminal chance to connect
+  delay(2000);  // Give terminal chance to connect
   initWiFi();
   initModem();
 }
 
 String trimQuotes(String in) {
-  while(in.startsWith("\"")) {
+  while (in.startsWith("\"")) {
     in = in.substring(1);
   }
-  while(in.endsWith("\"")) {
+  while (in.endsWith("\"")) {
     in = in.substring(0, in.length() - 1);
   }
 
   return in;
-}
-
-void updateSerial() {
-  delay(500);
-  while (Serial.available()) {
-    SerialAT.write(Serial.read());//Forward what Serial received to Software Serial Port
-  }
-  while(SerialAT.available()) {
-    Serial.write(SerialAT.read());//Forward what Software Serial received to Serial Port
-  }
 }

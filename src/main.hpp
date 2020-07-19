@@ -18,6 +18,5 @@ String readLine(int timeout);
 bool sendBoolCommand(String command);
 String sendCommand(String command, bool readOK);
 String trimQuotes(String in);
-void updateSerial();
 
 #endif
