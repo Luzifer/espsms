@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #ifndef H_HTTP
 #define H_HTTP
 

@@ -1,5 +1,6 @@
 #include "http.hpp"
 
+#include <Arduino.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 
