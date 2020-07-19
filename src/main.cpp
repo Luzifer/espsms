@@ -80,7 +80,7 @@ void initModem() {
 
 void initWiFi() {
   Serial.println("Connecting to WiFi...");
-  WiFi.setHostname("espsms");
+  WiFi.setHostname(MQTT_CLIENT_ID);
   WiFi.begin(WIFI_NAME, WIFI_PASS);
 
   while (WiFi.status() != WL_CONNECTED) {
